@@ -1,4 +1,6 @@
 import numpy as np
+if not hasattr(np, "trapezoid"):  # NumPy < 2.0
+    np.trapezoid = np.trapz
 from numpy.polynomial.legendre import leggauss
 xs,ws=leggauss(50); S=(xs+1)/2; WS=ws/2
 def tgrid(n=40,T=1.0,zero=False):
