@@ -1,6 +1,7 @@
 """
 Factorized conditioning of memory-kernel identification.
-Reproduces Tables 1-5 of the proceedings paper (training-free, CPU only).
+Reproduces Tables 1, 2, 4 (relative-noise part), 5 and 6 of the proceedings paper;
+Table 3, the absolute-noise part of Table 4 and the checks of Sect. 5 are in nonlinear_checks.py (training-free, CPU only).
 
 J = A G, where G = dK/dp (kernel Jacobian, values on a weighted kernel grid)
 and A is the Volterra observation operator K -> int_0^t K(t-s) u_t(s) ds.
@@ -129,17 +130,17 @@ if __name__ == "__main__":
     lam = [mp.mpf('0.5'), mp.mpf(2), mp.mpf(8)]
     dK, K = prony(lam, w0); G = kernel_rows(dK, kg, kw); Kr = kernel_rows(K, kg, kw)
     p0 = mp.matrix(w0 + lam)
-    print("\nTable 3a: single excitations")
+    print("\nTable 4a: single excitations")
     for m, gp in enumerate(EXC):
         k = factorize(conv_rows(dK, tg, gp), G); print(m + 1, f(k[0]), f(k[3]))
-    print("Table 3b: cumulative, 40 rows per trajectory")
+    print("Table 4b: cumulative, 40 rows per trajectory")
     Js, bs = [], []
     for m, gp in enumerate(EXC):
         Js.append(conv_rows(dK, tg, gp)); bs += [x[0] for x in conv_rows(K, tg, gp).tolist()]
         if m + 1 in (1, 2, 3, 5):
             J = stack(Js); k = factorize(J, G); EK, Ep = linear_prediction(J, G, Kr, bs, p0)
             print(m + 1, f(k[0]), f(k[3]), "EK_lin=%s%%" % f(100*EK))
-    print("Table 3c: fixed budget of 240 rows")
+    print("Table 4c: fixed budget of 240 rows")
     for n in (1, 2, 4):
         tgn = data_grid(1, 240 // n)
         Js = [conv_rows(dK, tgn, EXC[m]) for m in range(n)]
@@ -147,7 +148,7 @@ if __name__ == "__main__":
         J = stack(Js); k = factorize(J, G); EK, Ep = linear_prediction(J, G, Kr, bs, p0)
         print("%dx%d" % (n, 240 // n), f(k[0]), f(k[3]), "EK_lin=%s%%" % f(100*EK))
 
-    print("\nTable 4: observation window, fixed resolution (Nt=40T, Ne=200T)")
+    print("\nTable 5: observation window, fixed resolution (Nt=40T, Ne=200T)")
     mp.mp.dps = 30
     for T in (1, 2, 4, 8):
         tgT = data_grid(T, 40 * T); kgT, kwT = kernel_grid(T, 200 * T)
@@ -157,7 +158,7 @@ if __name__ == "__main__":
         k = factorize(J, GT)
         print(T, f(k[0]), f(k[2]), f(k[3]), "Ep_lin=%s%% EK_lin=%s%%" % (f(100*Ep), f(100*EK)))
 
-    print("\nTable 5: piecewise-linear spline, kappa_obs and EK_lin (double precision)")
+    print("\nTable 6: piecewise-linear spline, kappa_obs and EK_lin (double precision)")
     xg, wg = np.polynomial.legendre.leggauss(3)
     def hat(j, kn, x):
         y = np.zeros_like(x, dtype=float); n = len(kn)
@@ -185,4 +186,6 @@ if __name__ == "__main__":
             B = J @ Vt.T / Sg; sb = np.linalg.svd(B, compute_uv=False)
             EK = 1e-3 * np.sqrt(np.mean(bd**2)) * np.linalg.norm(np.linalg.pinv(B), 'fro') \
                  / np.sqrt(np.sum(kwd * Ktrue(kgd)**2))
-            print(n, nm, "kappa_obs=%.3g" % (sb[0] / sb[-1]), "EK_lin=%.2f%%" % (100 * EK))
+            kob = sb[0] / sb[-1]
+            ek = "n/a (numerically singular)" if kob > 1e10 else "%.2f%%" % (100 * EK)
+            print(n, nm, "kappa_obs=%.3g" % kob, "EK_lin=" + ek)
